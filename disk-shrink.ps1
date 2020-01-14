@@ -1,5 +1,14 @@
-# Variables
+#Resize Azure OS Disk from Higher Disk Size to Smaller Disk Size
 
+### TODO ###
+# CREATE SNAPSHOT backup through AZURE gui
+
+#Run the following 2 lines in the Windows Guest OS
+Get-Partition -DiskNumber 0
+Get-Partition -DiskNumber 0 -PartitionNumber 2 | Resize-Partition -Size 30GB
+
+
+# Variables
 $DiskID = ""# eg. "/subscriptions/203bdbf0-69bd-1a12-a894-a826cf0a3/resourcegroups/rg-server1-prod-1/providers/Microsoft.Compute/disks/Server1-Server1"
 $VMName = "VM-Server1"
 $DiskSizeGB = 30
