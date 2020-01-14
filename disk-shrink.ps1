@@ -1,7 +1,7 @@
 # Variables
 $DiskID = ""# eg. "/subscriptions/203bdbf0-69bd-1a12-a894-a826cf0a34c8/resourcegroups/rg-server1-prod-1/providers/Microsoft.Compute/disks/Server1-Server1"
 $VMName = "VM-Server1"
-$DiskSizeGB = 32
+$DiskSizeGB = 30
 $AzSubscription = "Prod Subscription"
 
 # Script
@@ -58,7 +58,7 @@ $state
 # Revoke SAS token
 Revoke-AzDiskAccess -ResourceGroupName $resourceGroupName -DiskName $DiskName
 
-# Emtpy disk to get footer from
+# Empty disk to get footer from
 $emptydiskforfootername = "$($VM.StorageProfile.OsDisk.Name)-empty.vhd"
 
 # Empty disk URI
@@ -107,20 +107,15 @@ Remove-AzDisk -ResourceGroupName $resourceGroupName -DiskName $emptydiskforfoote
 # Get the blobs
 $emptyDiskblob = Get-AzStorageBlob -Context $destinationContext -Container $storageContainerName -Blob $emptydiskforfootername
 $osdisk = Get-AzStorageBlob -Context $destinationContext -Container $storageContainerName -Blob $destinationVHDFileName
-
 $footer = New-Object -TypeName byte[] -ArgumentList 512
 write-output "Get footer of empty disk"
-
 $downloaded = $emptyDiskblob.ICloudBlob.DownloadRangeToByteArray($footer, 0, $emptyDiskblob.Length - 512, 512)
-
 $osDisk.ICloudBlob.Resize($emptyDiskblob.Length)
 $footerStream = New-Object -TypeName System.IO.MemoryStream -ArgumentList (,$footer)
 write-output "Write footer of empty disk to OSDisk"
 $osDisk.ICloudBlob.WritePages($footerStream, $emptyDiskblob.Length - 512)
-
 Write-Output -InputObject "Removing empty disk blobs"
 $emptyDiskblob | Remove-AzStorageBlob -Force
-
 
 #Provide the name of the Managed Disk
 $NewDiskName = "$DiskName" + "-new"
@@ -132,11 +127,10 @@ $accountType = "Premium_LRS"
 $vhdUri = $osdisk.ICloudBlob.Uri.AbsoluteUri
 
 # Specify the disk options
-$diskConfig = New-AzDiskConfig -AccountType $accountType -Location $VM.location -DiskSizeGB $DiskSizeGB -SourceUri $vhdUri -CreateOption Import -StorageAccountId $StorageAccount.Id
+$diskConfig = New-AzDiskConfig -AccountType $accountType -Location $VM.location -DiskSizeGB $DiskSizeGB -SourceUri $vhdUri -CreateOption Import
 
-#Create Managed disk
+#Create Managed disk (This part might fail to execute, nevermind, proceed to the storage account on the portal and create a managed disk from it and create a VM)
 $NewManagedDisk = New-AzDisk -DiskName $NewDiskName -Disk $diskConfig -ResourceGroupName $resourceGroupName
-
 $VM | Stop-AzVM -Force
 
 # Set the VM configuration to point to the new disk  
@@ -144,10 +138,9 @@ Set-AzVMOSDisk -VM $VM -ManagedDiskId $NewManagedDisk.Id -Name $NewManagedDisk.N
 
 # Update the VM with the new OS disk
 Update-AzVM -ResourceGroupName $resourceGroupName -VM $VM
-
 $VM | Start-AzVM
-
 start-sleep 180
+
 # Please check the VM is running before proceeding with the below tidy-up steps
 
 # Delete old Managed Disk
